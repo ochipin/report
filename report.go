@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Trace : StackTrace 実行後、Trace情報を管理する構造体
+// Trace : Trace情報を管理する構造体
 type Trace struct {
 	StackTrace    []string  // スタックトレース
 	UserAgent     string    // ブラウザ情報
