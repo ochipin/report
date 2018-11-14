@@ -37,7 +37,7 @@ func main() {
 `StackTrace`関数は、次の実装になっている。
 
 ```go
-func StackTrace(point int, w http.ResponseWriter, r *http.Request) *Trace {...}
+func ServeTrace(point int, w http.ResponseWriter, r *http.Request) *Trace {...}
 ```
 
 * 第1引数 - int  
