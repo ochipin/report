@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Trace : StackTrace 実行後、Trace情報を管理する構造体
+// Trace : Trace情報を管理する構造体
 type Trace struct {
 	StackTrace    []string  // スタックトレース
 	UserAgent     string    // ブラウザ情報
@@ -23,6 +23,7 @@ type Trace struct {
 	ContentLength int64     // 送信バイト数
 	AccessURL     string    // アクセスURL
 	Form          string    // 送信データ情報
+	MultipartForm string    // アップロードファイル情報
 	ContentType   string    // Content-Type
 	Language      string    // Accept-Language
 	Protocol      string    // http or https などのプロトコル名
@@ -76,6 +77,8 @@ func (p *Trace) Template(title interface{}) string {
 		"Proto:           {{.ProtoVersion}}",
 		"SubmitData: ",
 		"{{.Form}}",
+		"UploadFiles: ",
+		"{{.MultipartForm}}",
 		"StackTrace: ",
 		"{{range .StackTrace}}{{.}}",
 		"{{end}}",
@@ -108,15 +111,38 @@ func ServeTrace(point int, w http.ResponseWriter, r *http.Request) *Trace {
 	p.RemoteAddr = r.RemoteAddr
 	// 送信バイト数
 	p.ContentLength = r.ContentLength
-	// 送信情報を取得
-	r.ParseForm()
-	buf, _ := json.MarshalIndent(r.PostForm, "", "    ")
-	p.Form = string(buf)
+
 	// Content-Type
 	p.ContentType = r.Header.Get("Content-Type")
 	if p.ContentType == "" {
 		p.ContentType = w.Header().Get("Content-Type")
 	}
+	// 送信情報を取得
+	if strings.Index(p.ContentType, "multipart/form-data") != -1 {
+		r.ParseMultipartForm(32 << 20)
+	}
+	r.ParseForm()
+	if r.MultipartForm != nil && r.MultipartForm.File != nil {
+		var data = make(map[string]interface{})
+		for name, headers := range r.MultipartForm.File {
+			var files []map[string]interface{}
+			for _, header := range headers {
+				var file = map[string]interface{}{
+					"filename": header.Filename,
+					"headers":  header.Header,
+					"filesize": header.Size,
+				}
+				files = append(files, file)
+			}
+			data[name] = files
+		}
+		buf, _ := json.MarshalIndent(data, "", "    ")
+		p.MultipartForm = string(buf)
+	} else {
+		p.MultipartForm = "{}"
+	}
+	buf, _ := json.MarshalIndent(r.PostForm, "", "    ")
+	p.Form = string(buf)
 	// ブラウザの言語設定情報
 	p.Language = r.Header.Get("Accept-Language")
 	// プロトコル名
